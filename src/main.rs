@@ -1,10 +1,20 @@
+use std::env;
+
 mod chip8;
+use std::{thread, time};
+
 fn main() {
+    let args: Vec<String> = env::args().collect();
     let mut emulator: chip8::Chip8 = chip8::Chip8::initialize();
-    emulator.load_game("pong");
-    let mut c = 0;
-    for i in 1..100 {
-        c += emulator.emulate_cycle();
+    let game = args[1].as_str();
+    println!();
+    emulator.load_game(game);
+    emulator.graphics_init().unwrap();
+    let hrtz = 60;
+    let sixty_hz = time::Duration::from_millis(1000 / hrtz);
+    loop {
+        thread::sleep(sixty_hz);
+        emulator.detect_keypress();
+        emulator.emulate_cycle();
     }
-    println!("{} unrecog opcodes", c);
 }
