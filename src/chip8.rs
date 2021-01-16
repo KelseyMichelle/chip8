@@ -194,11 +194,11 @@ impl Chip8 {
                     self.vm.i = (opcode as usize) & 0x0FFF;
                }
                0xB000 => {
-                    // Jumps to the address NNN plus V0.
-                    self.vm.pc = (self.vm.v[0] as usize) + (opcode as usize) & 0x0FFF;
+                    // 0xBNNN Jumps to the address NNN plus V0.
+                    self.vm.pc = (self.vm.v[0] as usize) + ((opcode as usize) & 0x0FFF);
                }
                0xC000 => {
-                    // Sets VX to the result of a bitwise and operation on a random number and NN
+                    // 0xCXNN, Sets VX to the result of a bitwise and operation on a random number and NN
                     let n: u16 = rng.gen_range(0..256);
                     self.vm.v[x] = n as u8 & (0x00FF & opcode) as u8;
                }
@@ -207,7 +207,7 @@ impl Chip8 {
                     // Each row of 8 pixels is read as bit-coded starting from memory location I;
                     // I value doesn’t change after the execution of this instruction.
                     // As described above, VF is set to 1 if any screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that doesn’t happen
-                    let y: usize = ((0x00F0 & self.vm.opcode) >> 4) as usize;
+                    let y: usize = ((0x00F0 & opcode) >> 4) as usize;
                     let vx = self.vm.v[x] as usize;
                     let vy = self.vm.v[y] as usize;
                     let n = (0x000F as usize) & (opcode as usize);
@@ -227,7 +227,9 @@ impl Chip8 {
                                    let xo = b.to_string().parse::<u8>().unwrap()
                                         ^ self.vm.gfx[start + a];
                                    if xo != self.vm.gfx[start + a] {
-                                        self.vm.v[15] = 1;
+                                        if xo == 0 {
+                                             self.vm.v[15] = 1;
+                                        }
                                         self.vm.gfx[start + a] = xo;
                                         self.update_canvas(
                                              (start + a) % WIDTH as usize,
@@ -255,7 +257,7 @@ impl Chip8 {
                0x0007 => self.vm.v[x] = self.vm.delay_timer, // 0xFX07, Sets VX to the value of the delay timer.
                0x000A => {
                     // 0xFX0A, A key press is awaited, and then stored in VX.
-                    while self.vm.keypress != 17 {
+                    while self.vm.keypress == 17 {
                          self.detect_keypress();
                     }
                     self.vm.v[x] = self.vm.keypress;
@@ -274,7 +276,7 @@ impl Chip8 {
                }
                0x0029 => {
                     // Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                    let sa = 0x50 + self.vm.v[x] * 4;
+                    let sa = 0x50 + self.vm.v[x] * 5;
                     self.vm.i = sa as usize;
                }
                0x0033 => {
@@ -349,9 +351,9 @@ impl Chip8 {
                0x0002 => self.vm.v[x] = self.vm.v[y] & self.vm.v[x],
                0x0003 => self.vm.v[x] = self.vm.v[y] ^ self.vm.v[x],
                0x0004 => {
-                    //Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
+                    // 0x8XY4, Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
                     let result: u16 = self.vm.v[x] as u16 + self.vm.v[y] as u16;
-                    if result & 0x000F < result {
+                    if (result & 0xFF) < result {
                          self.vm.v[15] = 1
                     } else {
                          self.vm.v[15] = 0;
@@ -363,9 +365,9 @@ impl Chip8 {
                     if self.vm.v[x] < self.vm.v[y] {
                          // check if VX is < VY
                          // if yes, shift VX to the left by one, subtract, then set VF to 0 to indicate a borrow
-                         self.vm.v[x] =
-                              (((self.vm.v[x] as u16) + 0b100000000) - self.vm.v[y] as u16) as u8;
-                         self.vm.v[0xF] = 0
+                         let sub = self.vm.v[x] as i16 - self.vm.v[y] as i16 + 256;
+                         self.vm.v[x] = sub as u8;
+                         self.vm.v[0xF] = 0;
                     } else {
                          // if no, subtract normally and set VF to 1 to indicate no borrow
                          self.vm.v[x] -= self.vm.v[y];
@@ -373,19 +375,20 @@ impl Chip8 {
                     }
                }
                0x0006 => {
-                    self.vm.v[15] = (self.vm.v[x] & 0x0001) as u8;
+                    self.vm.v[0xF] = self.vm.v[x] & 0x1;
                     self.vm.v[x] = self.vm.v[x] >> 1;
                }
                0x0007 => {
                     if self.vm.v[y] < self.vm.v[x] {
-                         // check if VY is < VX
-                         // if yes, shift VY to the left by one, subtract, then set VF to 0 to indicate a borrow
-                         self.vm.v[x] = (((self.vm.v[y] as u16) << 1) - self.vm.v[x] as u16) as u8;
-                         self.vm.v[15] = 0
+                         // 0x8XY7, check if VY is < VX
+                         // if yes, shift VX to the left by one, subtract, then set VF to 0 to indicate a borrow
+                         let sub = self.vm.v[y] as i16 - self.vm.v[x] as i16 + 256;
+                         self.vm.v[x] = sub as u8;
+                         self.vm.v[0xF] = 0;
                     } else {
                          // if no, subtract normally and set VF to 1 to indicate no borrow
                          self.vm.v[x] = self.vm.v[y] - self.vm.v[x];
-                         self.vm.v[15] = 1;
+                         self.vm.v[0xF] = 1;
                     }
                }
                0x000E => {
