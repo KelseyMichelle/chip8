@@ -10,7 +10,7 @@ fn main() {
     println!();
     emulator.load_game(game);
     emulator.graphics_init().unwrap();
-    let hrtz = 60;
+    let hrtz = 500;
     let sixty_hz = time::Duration::from_millis(1000 / hrtz);
     loop {
         thread::sleep(sixty_hz);
