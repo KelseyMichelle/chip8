@@ -1,17 +1,14 @@
-#![feature(array_map)]
 extern crate sdl2;
 
 mod key_check;
 use rand::Rng;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
+
 use sdl2::pixels::Color;
-use sdl2::rect::{Point, Rect};
-use sdl2::render::{Canvas, Texture, TextureCreator};
-use sdl2::video::{Window, WindowContext};
+use sdl2::rect::Rect;
+use sdl2::render::Canvas;
+use sdl2::video::Window;
 use std::fs::File;
-use std::io;
+
 use std::io::prelude::*;
 use std::io::BufReader;
 
@@ -20,10 +17,10 @@ const WIDTH: u32 = 64;
 const PIXEL_SIZE: u32 = 16;
 
 pub struct Chip8 {
-     vm: Chip8_VM,
+     vm: Chip8VM,
 }
 // struct for the VM, contains relevent counters and memory
-pub struct Chip8_VM {
+pub struct Chip8VM {
      sdl_context: sdl2::Sdl,
      keypress: u8,
      canvas: Canvas<Window>,
@@ -60,8 +57,8 @@ const FONTSET: [u8; 80] = [
 ];
 
 // generates the Chip8 VM
-impl Chip8_VM {
-     fn new() -> Chip8_VM {
+impl Chip8VM {
+     fn new() -> Chip8VM {
           // construct initial state for the VM
           let mem: [u8; 4096] = [0; 4096];
           let reg: [u8; 16] = [0; 16];
@@ -71,7 +68,7 @@ impl Chip8_VM {
           let gx: [u8; (WIDTH * HEIGHT) as usize] = [0; (WIDTH * HEIGHT) as usize];
           let sdl_con = sdl2::init().unwrap();
           let can: Canvas<Window> = Chip8::make_canvas(&sdl_con, "Chip-8 Emulator");
-          Chip8_VM {
+          Chip8VM {
                sdl_context: sdl_con,
                keypress: 17,
                name: String::from(""),
@@ -94,9 +91,7 @@ impl Chip8_VM {
 impl Chip8 {
      // create initial state for chip8
      pub fn initialize() -> Chip8 {
-          Chip8 {
-               vm: Chip8_VM::new(),
-          }
+          Chip8 { vm: Chip8VM::new() }
      }
      pub fn load_game(&mut self, game: &str) {
           self.vm.name = String::from(game);
@@ -134,7 +129,6 @@ impl Chip8 {
           self.vm.opcode = opcode;
           // println!("0x{:x}", opcode);
           self.vm.pc += 2;
-          let mut c = 0;
           let x: usize = ((0x0F00 & self.vm.opcode) >> 8) as usize;
           if x == 14 {
                // println!("E REFERENCING ADDRESS {:x}", opcode);
@@ -409,8 +403,8 @@ impl Chip8 {
                0x000E => {
                     // Stores the most significant bit of VX in VF and then shifts VX to the left by 1
                     let most_sig = (self.vm.v[x] & 0b10000000) / 128;
-                    println!("{:b}", self.vm.v[x]);
-                    println!("{}", most_sig);
+                    // println!("{:b}", self.vm.v[x]);
+                    // println!("{}", most_sig);
                     self.vm.v[15] = most_sig;
                     self.vm.v[x] = self.vm.v[x] << 1;
                }
