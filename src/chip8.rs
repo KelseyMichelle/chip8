@@ -119,24 +119,26 @@ impl Chip8 {
      }
      // processes current opcode that is stored at the memory address that pc is pointing to
      pub fn emulate_cycle(&mut self) {
-          if self.vm.delay_timer > 1 {
-               self.vm.delay_timer -= 1;
-          } else if self.vm.delay_timer == 1 {
+          if self.vm.delay_timer >= 1 {
                self.vm.delay_timer -= 1;
           }
           if self.vm.sound_timer > 1 {
                self.vm.sound_timer -= 1;
           } else if self.vm.sound_timer == 1 {
                self.vm.sound_timer -= 1;
+               println!("beep!!!!!!!!!!!!!!");
           }
-
           let mut rng = rand::thread_rng();
           let mut opcode: u16 = self.vm.memory[self.vm.pc].into();
           opcode = (opcode << 8) ^ self.vm.memory[self.vm.pc + 1] as u16;
           self.vm.opcode = opcode;
+          println!("0x{:x}", opcode);
           self.vm.pc += 2;
           let mut c = 0;
           let x: usize = ((0x0F00 & self.vm.opcode) >> 8) as usize;
+          if x == 14 {
+               println!("E REFERENCING ADDRESS {:x}", opcode);
+          }
           match opcode & 0xF000 {
                0x0000 => self.zero(), // 0NNN, calls function that handles opcodes that begin with 0
                0x1000 => self.vm.pc = (0x0FFF & opcode) as usize, // 0x1NNN, jump to NNN
@@ -168,6 +170,7 @@ impl Chip8 {
                }
                0x6000 => {
                     // 0x6XNN, set VX = NN
+                    println!("set register {} to {}", x, (opcode & 0x00FF));
                     let n: u8 = (opcode & 0x00FF) as u8;
                     self.vm.v[x] = n;
                     // println!("x: {}, n: {}", x, n);
@@ -175,8 +178,10 @@ impl Chip8 {
                0x7000 => {
                     // 0x7XNN, add NN to VX
                     let n: u16 = 0x00FF & opcode;
+                    println!("add {} to  register {}", n, x);
                     let a: u8 = ((n + self.vm.v[x] as u16) & 0xFF) as u8;
                     self.vm.v[x] = a;
+                    println!("add {} to V{}", n, x);
                }
                0x8000 => {
                     // calls function eight() that handles 0x8XXX opcodes
@@ -198,7 +203,7 @@ impl Chip8 {
                     self.vm.pc = (self.vm.v[0] as usize) + ((opcode as usize) & 0x0FFF);
                }
                0xC000 => {
-                    // 0xCXNN, Sets VX to the result of a bitwise and operation on a random number and NN
+                    // 0xCXNN, Sets VX to the result of a bitwise AND operation on a random number and NN
                     let n: u16 = rng.gen_range(0..256);
                     self.vm.v[x] = n as u8 & (0x00FF & opcode) as u8;
                }
@@ -211,6 +216,9 @@ impl Chip8 {
                     let vx = self.vm.v[x] as usize;
                     let vy = self.vm.v[y] as usize;
                     let n = (0x000F as usize) & (opcode as usize);
+                    if x == 4 && y == 5 {
+                         println!("x: {}, y: {}, n: {}, I: {}", vx, vy, n, self.vm.i);
+                    }
                     self.vm.v[15] = 0;
                     for r in 0..n {
                          let start: usize = (r + vy) * WIDTH as usize + vx; // starting coordinate
@@ -275,11 +283,14 @@ impl Chip8 {
                     self.vm.i += self.vm.v[x] as usize;
                }
                0x0029 => {
-                    // Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+                    // 0xFX29, Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) are represented by a 4x5 font.
                     let sa = 0x50 + self.vm.v[x] * 5;
                     self.vm.i = sa as usize;
+                    println!("Set I to {} from V{}", 0x50 + self.vm.v[x], x);
                }
                0x0033 => {
+                    // Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I, the middle digit at I plus 1, and the least significant digit at I plus 2.
+                    println!("{:?}", self.vm.v);
                     let mut counter = 0;
                     let mut nstring: String = self.vm.v[x].to_string();
                     while nstring.len() < 3 {
@@ -291,16 +302,22 @@ impl Chip8 {
                          self.vm.memory[self.vm.i + counter] = n.to_string().parse::<u8>().unwrap();
                          counter += 1;
                     });
+                    println!("storing {} at i addresses from V{}", nstring, x);
                }
                0x0055 => {
                     for z in 0..(x + 1) {
                          self.vm.memory[self.vm.i + z] = self.vm.v[z];
                     }
+                    println!(
+                         "DUMP: store up to register V{} starting at {}",
+                         x, self.vm.i
+                    );
                }
                0x0065 => {
                     for z in 0..(x + 1) {
                          self.vm.v[z] = self.vm.memory[self.vm.i + z];
                     }
+                    println!("DUMP memory up to V{:x}", x);
                }
                _ => println!("not a valid opcode: {:x}", self.vm.opcode),
           }
@@ -332,7 +349,7 @@ impl Chip8 {
                     // return from subroutine
                     self.vm.stack[self.vm.sp] = 0; // clear stack
                     self.vm.sp -= 1; // go back one level in the stack
-                    self.vm.pc = (self.vm.stack[self.vm.sp] + 2) as usize; // set next opcode to be the next opcode in memory after the prior call in the stack
+                    self.vm.pc = (self.vm.stack[self.vm.sp]) as usize; // set next opcode to be the next opcode in memory after the prior call in the stack
                }
                _ => {
                     self.vm.pc = code as usize;
@@ -352,6 +369,10 @@ impl Chip8 {
                0x0003 => self.vm.v[x] = self.vm.v[y] ^ self.vm.v[x],
                0x0004 => {
                     // 0x8XY4, Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
+                    println!(
+                         "add {} to {} from reg V{} into V{}",
+                         self.vm.v[x], self.vm.v[y], x, y
+                    );
                     let result: u16 = self.vm.v[x] as u16 + self.vm.v[y] as u16;
                     if (result & 0xFF) < result {
                          self.vm.v[15] = 1
@@ -361,10 +382,13 @@ impl Chip8 {
                     self.vm.v[x] = (result & 0xFF) as u8;
                }
                0x0005 => {
+                    println!(
+                         "subtract {} from {} from reg V{} taking away V{}",
+                         self.vm.v[x], self.vm.v[y], x, y
+                    );
                     // VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
                     if self.vm.v[x] < self.vm.v[y] {
                          // check if VX is < VY
-                         // if yes, shift VX to the left by one, subtract, then set VF to 0 to indicate a borrow
                          let sub = self.vm.v[x] as i16 - self.vm.v[y] as i16 + 256;
                          self.vm.v[x] = sub as u8;
                          self.vm.v[0xF] = 0;
@@ -393,7 +417,7 @@ impl Chip8 {
                }
                0x000E => {
                     // Stores the most significant bit of VX in VF and then shifts VX to the left by 1
-                    let most_sig = self.vm.v[x] >> 7;
+                    let most_sig = self.vm.v[x] & 0b10000000;
                     self.vm.v[15] = most_sig;
                     self.vm.v[x] = self.vm.v[x] << 1;
                }
