@@ -3,7 +3,7 @@
 uses command line interfacing to load emulators
 
 example:
-```cargo run **pong.ch8**```
+```cargo run pong.ch8```
 
 controls for pong are A and Z for left size, and M and K for right side.
 controls are difficult because each game/rom interprets them differently.
