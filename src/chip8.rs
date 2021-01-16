@@ -408,7 +408,9 @@ impl Chip8 {
                }
                0x000E => {
                     // Stores the most significant bit of VX in VF and then shifts VX to the left by 1
-                    let most_sig = self.vm.v[x] & 0b10000000;
+                    let most_sig = (self.vm.v[x] & 0b10000000) / 128;
+                    println!("{:b}", self.vm.v[x]);
+                    println!("{}", most_sig);
                     self.vm.v[15] = most_sig;
                     self.vm.v[x] = self.vm.v[x] << 1;
                }
@@ -417,7 +419,6 @@ impl Chip8 {
      }
      fn clear_screen(&mut self) {
           self.vm.gfx = [0; (HEIGHT * WIDTH) as usize];
-          println!("{:?}", self.vm.gfx);
           self.vm.canvas.clear();
           self.vm.canvas.present();
      }
