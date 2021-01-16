@@ -94,6 +94,7 @@ impl Chip8 {
           Chip8 { vm: Chip8VM::new() }
      }
      pub fn load_game(&mut self, game: &str) {
+          let load_offset = 0x200;
           self.vm.name = String::from(game);
           let mut file: String = String::from("src/roms/");
           file.push_str(game);
@@ -101,14 +102,14 @@ impl Chip8 {
           let f = File::open(file.to_string()).expect("unable to open or locate file"); // read file from games folder
           let reader = BufReader::new(f); // send file to buffers
           let mut pos = 0;
-          for byte in reader.bytes() {
-               // store game in memory
-               self.vm.memory[pos + 0x200] = byte.expect("0");
+          for byte in FONTSET.iter() {
+               self.vm.memory[pos + 0x50] = *byte;
                pos += 1;
           }
           pos = 0;
-          for byte in FONTSET.iter() {
-               self.vm.memory[pos + 0x50] = *byte;
+          for byte in reader.bytes() {
+               // store game in memory
+               self.vm.memory[pos + load_offset] = byte.expect("0");
                pos += 1;
           }
      }
@@ -412,6 +413,7 @@ impl Chip8 {
           }
      }
      fn clear_screen(&mut self) {
+          self.vm.canvas.set_draw_color(Color::RGB(0, 0, 0));
           self.vm.gfx = [0; (HEIGHT * WIDTH) as usize];
           self.vm.canvas.clear();
           self.vm.canvas.present();
