@@ -1,14 +1,19 @@
 # chip8 emulator
 
-uses command line interfacing to load emulators
+Uses command line interfacing to load emulators
 
-syntax:
+Syntax:
 
 ```cargo run [ROM_FILENAME] [CLOCK_SPEED]```
 
-for clock speed i recommend starting at 300hz then deciding, from there, whether you would like to increase or decrease it.
+For clock speed, I recommend starting at 300hz then deciding, from there, whether you would like to increase or decrease it.
 
-controls for pong are A and Z for left side, and M and K for right side.
-controls are difficult because each game/rom interprets them differently.
+Example Controls:
+Pong: A and Z for left side, and M and K for right side.
+Each game will map controls differently.
 
-put roms into the ./src/roms/ directory
+Put roms into the ./src/roms/ directory
+
+**Technologies Used**
+- Rust Programming Language
+- SDL2 Graphics Library
